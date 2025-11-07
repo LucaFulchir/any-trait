@@ -1,0 +1,6 @@
+*~
+*.swp
+/target
+/Cargo.lock
+/flake.profile*
+/*/target

@@ -1,0 +1,14 @@
+[package]
+name = "any-trait"
+version = "0.1.0"
+edition = "2024"
+description = "Up/Down cast between concrete and subtraits"
+
+homepage   = "https://github.com/LucaFulchir/any-trait"
+repository = "https://github.com/LucaFulchir/any-trait"
+license = "EUPL-1.2"
+keywords = [ "any", "trait", "anytrait", "any-trait" ]
+categories = [ "no-std", "rust-patterns" ]
+
+[dependencies]
+any-trait-macro = { path="../any-trait-macro", version = "0.1.0" }
