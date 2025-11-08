@@ -86,19 +86,29 @@ pub fn derive_anytrait(input: TokenStream) -> TokenStream {
                 static TRAITS : [::any_trait::typeidconst::TypeIdConst; #tot_traits] =
                     ::any_trait::typeidconst::append_array::
                         <#name, #extra_traits_num, #tot_traits>(
+                    /* waiting for const Ord on TypeId...
                     ::any_trait::typeidconst::sort_array(
                         [#(::any_trait::typeidconst::TypeIdConst::of::
-                            <dyn #extra_traits>()),*]));
+                            <dyn #extra_traits>()),*])
+                    */
+                    [#(::any_trait::typeidconst::TypeIdConst::of::
+                        <dyn #extra_traits>()),*]
+                        );
                 &TRAITS
             }
             unsafe fn cast_to_mut(&mut self, trait_num: usize) -> usize {
                 const TRAITS : [::any_trait::typeidconst::TypeIdConst; #tot_traits] =
                     ::any_trait::typeidconst::append_array::
                         <#name, #extra_traits_num, #tot_traits>(
+                    /* waiting for const Ord on TypeId
                     ::any_trait::typeidconst::sort_array(
                         [#(::any_trait::typeidconst::TypeIdConst::of::
-                            <dyn #extra_traits>()),*]));
-                // Only the second part if TRAITS is ordered.
+                            <dyn #extra_traits>()),*])
+                    */
+                    [#(::any_trait::typeidconst::TypeIdConst::of::
+                        <dyn #extra_traits>()),*]
+                    );
+                // In the future only the second part of TRAITS will be ordered.
                 // but  that means that the macro does not know the index of
                 // a type in that list.
                 // create constants that we can `match` against.
@@ -160,10 +170,15 @@ pub fn derive_anytrait(input: TokenStream) -> TokenStream {
                 const TRAITS : [::any_trait::typeidconst::TypeIdConst; #tot_traits] =
                     ::any_trait::typeidconst::append_array::
                         <#name, #extra_traits_num, #tot_traits>(
+                    /* waiting for const Ord on TypeId
                     ::any_trait::typeidconst::sort_array(
                         [#(::any_trait::typeidconst::TypeIdConst::of::
-                            <dyn #extra_traits>()),*]));
-                // Only the second part if TRAITS is ordered.
+                            <dyn #extra_traits>()),*])
+                    */
+                    [#(::any_trait::typeidconst::TypeIdConst::of::
+                        <dyn #extra_traits>()),*]
+                    );
+                // In the future only the second part of TRAITS will be ordered.
                 // but  that means that the macro does not know the index of
                 // a type in that list.
                 // create constants that we can `match` against.

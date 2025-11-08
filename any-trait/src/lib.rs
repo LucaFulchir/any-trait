@@ -1,7 +1,11 @@
+#![feature(const_trait_impl)]
+#![feature(const_cmp)]
+#![no_std]
+
 //! # AnyTrait
 //!
-//! **AnyTrait** lets you upcast to a generic `&dyn AnyTrait` like
-//! [`::core::any::Any`]\
+//! This is a **no_std** crate that lets you upcast to a generic `&dyn AnyTrait`
+//! like [`::core::any::Any`]\
 //! but instead of just allowing you to downcast back to
 //! the concrete type, it also lets you downcast to any trait used by your type
 //!
@@ -34,9 +38,6 @@
 //!     let c_ref : &Concrete = a2.downcast_ref::<Concrete>().unwrap();
 //! }
 //! ```
-
-#![feature(const_type_name)]
-#![no_std]
 pub mod typeidconst;
 
 use typeidconst::TypeIdConst;
@@ -66,8 +67,8 @@ pub trait AnyTrait: 'static {
     /// * id 0: `TypeIdConst::of::<dyn AnyType>`
     /// * id 1: `TypeIdConst::of::<YourConcreteType>`
     ///
-    /// Only the rest of the list (aka: from index 2) is ordered,
-    /// so we can run a binary search there if there are many types.
+    /// The reset of the list is currently unordered, will change as soon
+    /// as we find a way to have a `const Ord` on `TypeId`
     fn type_ids(&self) -> &'static [TypeIdConst];
 
     /// **very unsafe. don't use. internal only. Horror here. go away.**
@@ -122,6 +123,16 @@ impl dyn AnyTrait {
         let t = TypeIdConst::of::<T>();
 
         let all_traits = self.type_ids();
+
+        for it in all_traits.iter().enumerate() {
+            if *it.1 == t {
+                return Some(it.0);
+            }
+        }
+
+        return None;
+
+        /* Waiting for const Ord on TypeId...
         if all_traits[0] == t {
             return Some(0);
         }
@@ -142,6 +153,7 @@ impl dyn AnyTrait {
                 Err(_) => None,
             }
         }
+        */
     }
 
     /// Safe cast to reference to a generic type.

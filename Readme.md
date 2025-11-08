@@ -1,7 +1,7 @@
 
 # AnyTrait
 
-This crate lets you upcast from a concrete type to a `AnyTrait`, and then downcast to either:
+This is a **no_std** crate that lets you upcast from a concrete type to a `AnyTrait`, and then downcast to either:
 * the concrete type
 * any other trait implemented by your type
 
@@ -18,6 +18,7 @@ check the [official compatibility](https://interoperable-europe.ec.europa.eu/col
 The test does. Check there for examples, too.
 This crate is brand new and I did not have the time to actually use this anywhere.
 
+
 ## Why?
 
 Because we wanted to bring the eldritch horrors of half-done OOP to Rust.
@@ -32,7 +33,7 @@ With the power of eldritch casting/reinterpret horrors we cast your concrete typ
 
 All of this means that this is not free.
 We have to walk through the list of enabled traits, and if you have lots and lots of traits that can be expensive.
-We did try to add a few more horrors to have an ordered list of traits so we can binary search the list, but it's still not free.
+The list is not odered either, rust does not have `const Ord` on TypeId right now.
 
 ## Is this safe?
 
