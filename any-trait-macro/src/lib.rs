@@ -96,7 +96,7 @@ pub fn derive_anytrait(input: TokenStream) -> TokenStream {
                         );
                 &TRAITS
             }
-            unsafe fn cast_to_mut(&mut self, trait_num: usize) -> usize {
+            unsafe fn cast_to_mut(&mut self, trait_num: usize) -> ::any_trait::anyptr::AnyPtr {
                 const TRAITS : [::any_trait::typeidconst::TypeIdConst; #tot_traits] =
                     ::any_trait::typeidconst::append_array::
                         <#name, #extra_traits_num, #tot_traits>(
@@ -116,57 +116,33 @@ pub fn derive_anytrait(input: TokenStream) -> TokenStream {
                     ::any_trait::typeidconst::find_in::
                         <dyn #extra_traits, #tot_traits>(TRAITS);
                 )*
-                #[allow(unsafe_code)]
-                unsafe {
-                    // Here the horror happens.
-                    // we cast `self` to the correct dyn type.
-                    // but `*const dyn ...` is a fat pointer,
-                    // which is not guaranteed to have a stable size between
-                    // rust versions. so we use `*const *const` and have
-                    // a clean pointer,
-                    // that we horrifiyingly reinterpret as usize
-                    // ...so much for typesafety!
-                    match trait_num {
+                // Type-erase `self` into `AnyPtr`
+                match trait_num {
                         0 => {
-                            union U {
-                                ptr: *mut *mut dyn AnyTrait,
-                                raw_ptr: usize,
-                            }
-                            let t = &mut *(self as *mut dyn AnyTrait);
-                            let tmp = U {
-                                ptr: &mut (t as *mut dyn AnyTrait),
-                            };
-                            return tmp.raw_ptr;
-                        },
-                        1 => {
-                            union U {
-                                ptr: *mut *mut #name,
-                                raw_ptr: usize,
-                            }
-                            let mut p = self as *mut #name;
-                            let tmp = U { ptr: &mut p, };
+                            let ptr = self as *mut dyn AnyTrait;
 
-                            return tmp.raw_ptr;
-                        }
-                        #(#trait_idx_name => {
-                            union U {
-                                ptr: *mut *mut dyn #extra_traits,
-                                raw_ptr: usize,
-                            }
-                            let t = &mut *(self as *mut dyn #extra_traits);
-                            let tmp = U {
-                                ptr: &mut (t as *mut dyn #extra_traits),
-                            };
-                            return tmp.raw_ptr;
-                        }
-                        )*
-                        _ => {
-                            panic!("AnyTrait: forced cast to wrong type idx")
-                        }
+                        let erased = ::any_trait::anyptr::AnyPtr::of_mut::<dyn AnyTrait>(ptr);
+                        return erased;
+                    },
+                    1 => {
+                        let ptr = self as *mut #name;
+
+                        let erased = ::any_trait::anyptr::AnyPtr::of_mut::<#name>(ptr);
+                        return erased;
+                    }
+                    #(#trait_idx_name => {
+                        let ptr = self as *mut dyn #extra_traits;
+
+                        let erased = ::any_trait::anyptr::AnyPtr::of_mut::<dyn #extra_traits>(ptr);
+                        return erased;
+                    }
+                    )*
+                    _ => {
+                        panic!("AnyTrait: forced cast to wrong type idx")
                     }
                 }
             }
-            unsafe fn cast_to(&self, trait_num: usize) -> usize {
+            unsafe fn cast_to(&self, trait_num: usize) -> ::any_trait::anyptr::AnyPtr {
                 const TRAITS : [::any_trait::typeidconst::TypeIdConst; #tot_traits] =
                     ::any_trait::typeidconst::append_array::
                         <#name, #extra_traits_num, #tot_traits>(
@@ -186,53 +162,29 @@ pub fn derive_anytrait(input: TokenStream) -> TokenStream {
                     ::any_trait::typeidconst::find_in::
                         <dyn #extra_traits, #tot_traits>(TRAITS);
                 )*
-                #[allow(unsafe_code)]
-                unsafe {
-                    // Here the horror happens.
-                    // we cast `self` to the correct dyn type.
-                    // but `*const dyn ...` is a fat pointer,
-                    // which is not guaranteed to have a stable size between
-                    // rust versions. so we use `*const *const` and have
-                    // a clean pointer,
-                    // that we horrifiyingly reinterpret as usize
-                    // ...so much for typesafety!
-                    match trait_num {
-                        0 => {
-                            union U {
-                                ptr: *const *const dyn AnyTrait,
-                                raw_ptr: usize,
-                            }
-                            let t2 = &*(self as *const dyn AnyTrait);
-                            let tmp = U {
-                                ptr: &(t2 as *const dyn AnyTrait),
-                            };
-                            return tmp.raw_ptr;
-                        },
-                        1 => {
-                            union U {
-                                ptr: *const *const #name,
-                                raw_ptr: usize,
-                            }
-                            let p = self as *const #name;
-                            let tmp = U { ptr: &p };
+                // Type-erase `self` into `AnyPtr`
+                match trait_num {
+                    0 => {
+                        let ptr = self as *const dyn AnyTrait;
 
-                            return tmp.raw_ptr;
-                        }
-                        #(#trait_idx_name => {
-                            union U {
-                                ptr: *const *const dyn #extra_traits,
-                                raw_ptr: usize,
-                            }
-                            let t2 = &*(self as *const dyn #extra_traits);
-                            let tmp = U {
-                                ptr: &(t2 as *const dyn #extra_traits),
-                            };
-                            return tmp.raw_ptr;
-                        }
-                        )*
-                        _ => {
-                            panic!("AnyTrait: forced cast to wrong type idx")
-                        }
+                        let erased = ::any_trait::anyptr::AnyPtr::of::<dyn AnyTrait>(ptr);
+                        return erased;
+                    },
+                    1 => {
+                        let ptr = self as *const #name;
+
+                        let erased = ::any_trait::anyptr::AnyPtr::of::<#name>(ptr);
+                        return erased;
+                    }
+                    #(#trait_idx_name => {
+                        let ptr = self as *const dyn #extra_traits;
+
+                        let erased = ::any_trait::anyptr::AnyPtr::of::<dyn #extra_traits>(ptr);
+                        return erased;
+                    }
+                    )*
+                    _ => {
+                        panic!("AnyTrait: forced cast to wrong type idx")
                     }
                 }
             }

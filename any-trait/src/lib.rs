@@ -38,8 +38,10 @@
 //!     let c_ref : &Concrete = a2.downcast_ref::<Concrete>().unwrap();
 //! }
 //! ```
+pub mod anyptr;
 pub mod typeidconst;
 
+use anyptr::AnyPtr;
 use typeidconst::TypeIdConst;
 
 pub use ::any_trait_macro::AnySubTrait;
@@ -71,22 +73,22 @@ pub trait AnyTrait: 'static {
     /// as we find a way to have a `const Ord` on `TypeId`
     fn type_ids(&self) -> &'static [TypeIdConst];
 
-    /// **very unsafe. don't use. internal only. Horror here. go away.**
+    /// **very unsafe. don't use. internal only.**
     ///
     /// cast `self` to a trait in the `.type_ids()` list.\
     /// the pointer to the ref to the type in the list
-    /// is then converted to `usize`.
+    /// is then type-erase to `AnyPtr`.
     ///
     /// panics if list length is exceeded.
-    unsafe fn cast_to(&self, trait_num: usize) -> usize;
-    /// **very unsafe. don't use. internal only. Horror here. go away.**
+    unsafe fn cast_to(&self, trait_num: usize) -> AnyPtr;
+    /// **very unsafe. don't use. internal only.
     ///
     /// cast `self` to a trait in the `.type_ids()` list.\
     /// the pointer to the ref to the type in the list
-    /// is then converted to `usize`.
+    /// is then type-erase to `AnyPtr`.
     ///
     /// panics if list length is exceeded.
-    unsafe fn cast_to_mut(&mut self, trait_num: usize) -> usize;
+    unsafe fn cast_to_mut(&mut self, trait_num: usize) -> AnyPtr;
 }
 
 /// upcast from the concrete type
@@ -95,20 +97,28 @@ pub trait AnyTrait: 'static {
 /// Automatically implemented on all types that implement `AnyTrait`
 pub trait AsAnyTrait: AnyTrait {
     fn as_anytrait(&self) -> &dyn AnyTrait;
+    fn as_anytrait_mut(&mut self) -> &mut dyn AnyTrait;
 }
 
 // everybody can have the same implementation as the `dyn Any` is always
 // the first type in the list
 impl<T: AnyTrait + ?Sized> AsAnyTrait for T {
     fn as_anytrait(&self) -> &dyn AnyTrait {
+        #[allow(unsafe_code)]
         unsafe {
-            let raw = self.cast_to(0);
-            union U {
-                ptr: usize,
-                a: *const *const dyn AnyTrait,
-            }
-            let tmp = U { ptr: raw };
-            return &**tmp.a;
+            let erased = self.cast_to(0);
+            let any = erased.to_ptr::<dyn AnyTrait>();
+
+            return any.as_ref();
+        }
+    }
+    fn as_anytrait_mut(&mut self) -> &mut dyn AnyTrait {
+        #[allow(unsafe_code)]
+        unsafe {
+            let erased = self.cast_to(0);
+            let mut any = erased.to_ptr::<dyn AnyTrait>();
+
+            return any.as_mut();
         }
     }
 }
@@ -166,15 +176,10 @@ impl dyn AnyTrait {
         };
         #[allow(unsafe_code)]
         unsafe {
-            #[allow(trivial_casts)]
-            let ta = self.cast_to(idx);
-            union UT<T: ?Sized> {
-                a: usize,
-                d: *const *const T,
-            }
-            let f = UT::<T> { a: ta };
-            let res = *f.d;
-            Some(&*res)
+            let erased = self.cast_to(idx);
+            let any = erased.to_ptr::<T>();
+
+            return Some(any.as_ref());
         }
     }
 
@@ -188,15 +193,10 @@ impl dyn AnyTrait {
         };
         #[allow(unsafe_code)]
         unsafe {
-            #[allow(trivial_casts)]
-            let ta = self.cast_to_mut(idx);
-            union UT<T: ?Sized> {
-                a: usize,
-                d: *mut *mut T,
-            }
-            let f = UT::<T> { a: ta };
-            let res: *mut T = *f.d;
-            Some(&mut *res)
+            let erased = self.cast_to(idx);
+            let mut any = erased.to_ptr::<T>();
+
+            return Some(any.as_mut());
         }
     }
 }

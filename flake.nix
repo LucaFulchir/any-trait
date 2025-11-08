@@ -50,7 +50,7 @@
            #rust-bin.stable.${RUST_VERSION}.default
            #rust-bin.beta.${RUST_VERSION}.default
            (rust-bin.nightly.${RUST_VERSION}.default.override {
-              extensions = [ "rust-src" "rustfmt" "rust-analyzer" "clippy" "cargo" "rustc" "rust-src" ];
+              extensions = [ "rust-src" "rustfmt" "rust-analyzer" "clippy" "cargo" "rustc" "rust-src" "miri" ];
            })
            #rust-bin.nightly.${RUST_VERSION}.rustfmt
            #rust-bin.nightly.${RUST_VERSION}.rust-analyzer
