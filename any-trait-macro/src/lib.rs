@@ -79,6 +79,37 @@ pub fn derive_anytrait(input: TokenStream) -> TokenStream {
     });
 
     let out = quote! {
+        impl const ::any_trait::typeidconst::TypeIdConstList for #name {
+            const LEN: usize = #tot_traits;
+            fn subtraits<const LEN: usize>() -> [::any_trait::typeidconst::TypeIdConst;LEN] {
+                if LEN != #tot_traits {
+                    panic!("nope. go away.");
+                }
+                ::any_trait::typeidconst::append_array::
+                    <#name, #extra_traits_num, LEN>(
+                /* waiting for const Ord on TypeId...
+                ::any_trait::typeidconst::sort_array(
+                    [#(::any_trait::typeidconst::TypeIdConst::of::
+                        <dyn #extra_traits>()),*])
+                */
+                [#(::any_trait::typeidconst::TypeIdConst::of::
+                    <dyn #extra_traits>()),*]
+                    )
+            }
+            fn find_in_list(t: &::any_trait::typeidconst::TypeIdConst) -> Option<usize> {
+                const LIST: [::any_trait::typeidconst::TypeIdConst; #tot_traits] =
+                    #name::subtraits::<#tot_traits>();
+                let mut i = 0;
+                while i < #tot_traits {
+                    if LIST[i].eq(t) {
+                        return Some(i);
+                    }
+                    i = i + 1;
+                }
+                None
+            }
+        }
+
         impl AnyTrait for #name
           where #name: #(#extra_traits)+*
         {

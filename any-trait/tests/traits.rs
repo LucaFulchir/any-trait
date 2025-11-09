@@ -1,3 +1,5 @@
+#![feature(const_trait_impl)]
+
 use any_trait::{AnySubTrait, AnyTrait, AnyTraitCast, AsAnyTrait};
 
 #[test]

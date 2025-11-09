@@ -107,6 +107,12 @@ pub const fn sort_array<const N: usize>(
 }
 */
 
+pub const trait TypeIdConstList {
+    const LEN: usize;
+    fn subtraits<const LEN: usize>() -> [TypeIdConst; LEN];
+    fn find_in_list(t: &TypeIdConst) -> Option<usize>;
+}
+
 /// get `[TypeIdConst;N]` in input and return `[TypeIdConst;N + 2]`
 ///
 /// we add the first two elements, and they always are:
@@ -125,6 +131,22 @@ pub const fn append_array<T: 'static, const N: usize, const M: usize>(
     }
 
     out
+}
+
+/// const-find the `TypeIdConst` of `T` inside the given array.
+/// return its index or panic
+pub const fn find_t_in<const N: usize>(
+    t: &TypeIdConst,
+    array: [TypeIdConst; N],
+) -> usize {
+    let mut i: usize = 0;
+    while i < N {
+        if array[i].eq(t) {
+            return i;
+        }
+        i = i + 1;
+    }
+    panic!("TypeIDConst find_in: called with non-member");
 }
 
 /// const-find the `TypeIdConst` of `T` inside the given array.
