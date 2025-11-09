@@ -83,7 +83,7 @@ pub fn derive_anytrait(input: TokenStream) -> TokenStream {
           where #name: #(#extra_traits)+*
         {
             fn type_ids(&self) -> &'static [::any_trait::typeidconst::TypeIdConst] {
-                static TRAITS : [::any_trait::typeidconst::TypeIdConst; #tot_traits] =
+                const TRAITS : [::any_trait::typeidconst::TypeIdConst; #tot_traits] =
                     ::any_trait::typeidconst::append_array::
                         <#name, #extra_traits_num, #tot_traits>(
                     /* waiting for const Ord on TypeId...
@@ -96,7 +96,7 @@ pub fn derive_anytrait(input: TokenStream) -> TokenStream {
                         );
                 &TRAITS
             }
-            unsafe fn cast_to_mut(&mut self, trait_num: usize) -> ::any_trait::anyptr::AnyPtr {
+            fn type_erase_mut(&mut self, trait_num: usize) -> ::any_trait::anyptr::AnyPtr {
                 const TRAITS : [::any_trait::typeidconst::TypeIdConst; #tot_traits] =
                     ::any_trait::typeidconst::append_array::
                         <#name, #extra_traits_num, #tot_traits>(
@@ -121,19 +121,19 @@ pub fn derive_anytrait(input: TokenStream) -> TokenStream {
                         0 => {
                             let ptr = self as *mut dyn AnyTrait;
 
-                        let erased = ::any_trait::anyptr::AnyPtr::of_mut::<dyn AnyTrait>(ptr);
+                        let erased = ::any_trait::anyptr::AnyPtr::from_mut::<dyn AnyTrait>(ptr);
                         return erased;
                     },
                     1 => {
                         let ptr = self as *mut #name;
 
-                        let erased = ::any_trait::anyptr::AnyPtr::of_mut::<#name>(ptr);
+                        let erased = ::any_trait::anyptr::AnyPtr::from_mut::<#name>(ptr);
                         return erased;
                     }
                     #(#trait_idx_name => {
                         let ptr = self as *mut dyn #extra_traits;
 
-                        let erased = ::any_trait::anyptr::AnyPtr::of_mut::<dyn #extra_traits>(ptr);
+                        let erased = ::any_trait::anyptr::AnyPtr::from_mut::<dyn #extra_traits>(ptr);
                         return erased;
                     }
                     )*
@@ -142,7 +142,7 @@ pub fn derive_anytrait(input: TokenStream) -> TokenStream {
                     }
                 }
             }
-            unsafe fn cast_to(&self, trait_num: usize) -> ::any_trait::anyptr::AnyPtr {
+            fn type_erase(&self, trait_num: usize) -> ::any_trait::anyptr::AnyPtr {
                 const TRAITS : [::any_trait::typeidconst::TypeIdConst; #tot_traits] =
                     ::any_trait::typeidconst::append_array::
                         <#name, #extra_traits_num, #tot_traits>(
@@ -167,19 +167,19 @@ pub fn derive_anytrait(input: TokenStream) -> TokenStream {
                     0 => {
                         let ptr = self as *const dyn AnyTrait;
 
-                        let erased = ::any_trait::anyptr::AnyPtr::of::<dyn AnyTrait>(ptr);
+                        let erased = ::any_trait::anyptr::AnyPtr::from::<dyn AnyTrait>(ptr);
                         return erased;
                     },
                     1 => {
                         let ptr = self as *const #name;
 
-                        let erased = ::any_trait::anyptr::AnyPtr::of::<#name>(ptr);
+                        let erased = ::any_trait::anyptr::AnyPtr::from::<#name>(ptr);
                         return erased;
                     }
                     #(#trait_idx_name => {
                         let ptr = self as *const dyn #extra_traits;
 
-                        let erased = ::any_trait::anyptr::AnyPtr::of::<dyn #extra_traits>(ptr);
+                        let erased = ::any_trait::anyptr::AnyPtr::from::<dyn #extra_traits>(ptr);
                         return erased;
                     }
                     )*

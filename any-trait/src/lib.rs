@@ -4,10 +4,18 @@
 
 //! # AnyTrait
 //!
-//! This is a **no_std** crate that lets you upcast to a generic `&dyn AnyTrait`
-//! like [`::core::any::Any`]\
-//! but instead of just allowing you to downcast back to
-//! the concrete type, it also lets you downcast to any trait used by your type
+//! This is a **no_std** crate that lets you cast from:
+//! * your concrete type
+//! * `&dyn AnyTrait`
+//! to:
+//! * the concrete type
+//! * any other trait implemented by your type
+//! * `&dyn AnyTrait`
+//!
+//! If the trait implements `AnyTrait`, that too can be cast to:
+//! * the concrete type
+//! * any other trait implemented by your type
+//! * `&dyn AnyTrait`
 //!
 //! *This is not zero-cost, since at any cast we need to go through the
 //! list of all possible subtraits.*
@@ -17,9 +25,9 @@
 //!
 //! example usage:
 //! ```rust
-//! use any_trait::{AnySubTrait, AnyTrait, AsAnyTrait};
+//! use any_trait::{AnySubTrait, AnyTrait, AsAnyTrait, AnyTraitCast};
 //! trait TA {}
-//! trait TB : AnyTrait {} // if a trait implements `AnyTrait` you can upcast
+//! trait TB : AnyTrait {} // if a trait implements `AnyTrait` you can upi/downcast
 //! #[derive(AnySubTrait)]
 //! #[any_sub_trait(TA, TB)] // must include all traits you want to downcast to
 //! struct Concrete {
@@ -29,13 +37,16 @@
 //! impl TB for Concrete {}
 //! fn test() {
 //!     let c = Concrete{};
+//!
 //!     let a = c.as_anytrait();
 //!
-//!     let ta :&dyn TA = a.downcast_ref::<dyn TA>().unwrap();
-//!     let tb :&dyn TB = a.downcast_ref::<dyn TB>().unwrap();
+//!     let ta :&dyn TA = a.cast_ref::<dyn TA>().unwrap();
+//!     let tb :&dyn TB = a.cast_ref::<dyn TB>().unwrap();
+//!
+//!     let ta_from_tb : &dyn TA = tb.cast_ref::<dyn TA>().unwrap();
 //!
 //!     let a2 = tb.as_anytrait();
-//!     let c_ref : &Concrete = a2.downcast_ref::<Concrete>().unwrap();
+//!     let c_ref : &Concrete = a2.cast_ref::<Concrete>().unwrap();
 //! }
 //! ```
 pub mod anyptr;
@@ -73,49 +84,84 @@ pub trait AnyTrait: 'static {
     /// as we find a way to have a `const Ord` on `TypeId`
     fn type_ids(&self) -> &'static [TypeIdConst];
 
-    /// **very unsafe. don't use. internal only.**
+    /// **don't use. internal only.**
     ///
     /// cast `self` to a trait in the `.type_ids()` list.\
     /// the pointer to the ref to the type in the list
     /// is then type-erase to `AnyPtr`.
     ///
-    /// panics if list length is exceeded.
-    unsafe fn cast_to(&self, trait_num: usize) -> AnyPtr;
-    /// **very unsafe. don't use. internal only.
+    /// # Safety
+    /// This is safe since you can't do anything to a `AnyPtr` by itself.
+    /// `AnyPtr::to_ptr` however is just wrong if you don't have the right
+    /// type. Again, don't use: internal only
+    ///
+    /// # Panics
+    /// If list `trait_num` exceeds `type_ids()` length
+    fn type_erase(&self, trait_num: usize) -> AnyPtr;
+    /// **don't use. internal only.**
     ///
     /// cast `self` to a trait in the `.type_ids()` list.\
     /// the pointer to the ref to the type in the list
     /// is then type-erase to `AnyPtr`.
     ///
-    /// panics if list length is exceeded.
-    unsafe fn cast_to_mut(&mut self, trait_num: usize) -> AnyPtr;
+    /// # Safety
+    /// This is safe since you can't do anything to a `AnyPtr` by itself
+    /// `AnyPtr::to_ptr` however is just wrong if you don't have the right
+    /// type. Again, don't use: internal only
+    ///
+    /// # Panics
+    /// If list `trait_num` exceeds `type_ids()` length
+    fn type_erase_mut(&mut self, trait_num: usize) -> AnyPtr;
 }
 
 /// upcast from the concrete type
+///
 /// (or from any other trait that implements `AnyTrait`) to `&dyn AnyTrait`
 ///
-/// Automatically implemented on all types that implement `AnyTrait`
+/// **Automatically implemented on all types that implement `AnyTrait`**
 pub trait AsAnyTrait: AnyTrait {
     fn as_anytrait(&self) -> &dyn AnyTrait;
     fn as_anytrait_mut(&mut self) -> &mut dyn AnyTrait;
 }
 
+/// (Up/Down)cast to another type
+///
+/// **Automatically implemented on all types that implement `AnyTrait`**
+///
+/// Note that this trait is **not dyn-compatible** and for that reason it is
+/// kept separate
+pub trait AnyTraitCast: AnyTrait {
+    /// Find the type in the supported trait list
+    fn trait_idx<T: ?Sized + 'static>(&self) -> Option<usize>;
+    /// (Up/Down)cast to a ref if the type is supported.
+    ///
+    /// Both Upcast and Downcast work, as long as the type is supported
+    fn cast_ref<D: ?Sized + 'static>(&self) -> Option<&D>;
+    /// (Up/Down)cast to a mut ref if the type is supported.
+    ///
+    /// Both Upcast and Downcast work, as long as the type is supported
+    fn cast_mut<D: ?Sized + 'static>(&mut self) -> Option<&mut D>;
+}
+
 // everybody can have the same implementation as the `dyn Any` is always
 // the first type in the list
 impl<T: AnyTrait + ?Sized> AsAnyTrait for T {
+    /// upcast to `&dyn AnyTrait`
+    #[inline]
     fn as_anytrait(&self) -> &dyn AnyTrait {
+        let erased = self.type_erase(0);
         #[allow(unsafe_code)]
         unsafe {
-            let erased = self.cast_to(0);
             let any = erased.to_ptr::<dyn AnyTrait>();
 
             return any.as_ref();
         }
     }
+    /// upcast to `&mut dyn AnyTrait`
     fn as_anytrait_mut(&mut self) -> &mut dyn AnyTrait {
+        let erased = self.type_erase(0);
         #[allow(unsafe_code)]
         unsafe {
-            let erased = self.cast_to(0);
             let mut any = erased.to_ptr::<dyn AnyTrait>();
 
             return any.as_mut();
@@ -123,14 +169,14 @@ impl<T: AnyTrait + ?Sized> AsAnyTrait for T {
     }
 }
 
-impl dyn AnyTrait {
+impl<T: AnyTrait + ?Sized> AnyTraitCast for T {
     /// Search the list of possible traits.
     ///
     /// If `self` can be cast to the generic parameter,
     /// return the index of the type in the list
     #[inline]
-    pub fn trait_idx<T: ?Sized + 'static>(&self) -> Option<usize> {
-        let t = TypeIdConst::of::<T>();
+    fn trait_idx<D: ?Sized + 'static>(&self) -> Option<usize> {
+        let t = TypeIdConst::of::<D>();
 
         let all_traits = self.type_ids();
 
@@ -170,14 +216,15 @@ impl dyn AnyTrait {
     ///
     /// Only return Some(...) if it is safe to do so.
     #[inline]
-    pub fn downcast_ref<T: ?Sized + 'static>(&self) -> Option<&T> {
-        let Some(idx) = self.trait_idx::<T>() else {
+    fn cast_ref<D: ?Sized + 'static>(&self) -> Option<&D> {
+        let Some(trait_idx) = self.trait_idx::<D>() else {
             return None;
         };
+
+        let erased = self.type_erase(trait_idx);
         #[allow(unsafe_code)]
         unsafe {
-            let erased = self.cast_to(idx);
-            let any = erased.to_ptr::<T>();
+            let any = erased.to_ptr::<D>();
 
             return Some(any.as_ref());
         }
@@ -187,14 +234,15 @@ impl dyn AnyTrait {
     ///
     /// Only return Some(...) if it is safe to do so.
     #[inline]
-    pub fn downcast_mut<T: ?Sized + 'static>(&mut self) -> Option<&mut T> {
-        let Some(idx) = self.trait_idx::<T>() else {
+    fn cast_mut<D: ?Sized + 'static>(&mut self) -> Option<&mut D> {
+        let Some(trait_idx) = self.trait_idx::<D>() else {
             return None;
         };
+
+        let erased = self.type_erase_mut(trait_idx);
         #[allow(unsafe_code)]
         unsafe {
-            let erased = self.cast_to(idx);
-            let mut any = erased.to_ptr::<T>();
+            let mut any = erased.to_ptr::<D>();
 
             return Some(any.as_mut());
         }

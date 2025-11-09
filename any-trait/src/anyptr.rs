@@ -52,7 +52,7 @@ impl AnyPtr {
     ///
     /// # Panics
     /// If `ptr` is Null.
-    pub fn of<T: ?Sized>(ptr: *const T) -> Self {
+    pub fn from<T: ?Sized>(ptr: *const T) -> Self {
         const {
             assert!(
                 size_of::<*const T>() == size_of::<NonNull<()>>()
@@ -60,14 +60,14 @@ impl AnyPtr {
             )
         }
 
-        return Self::of_mut::<T>(ptr as *mut T);
+        return Self::from_mut::<T>(ptr as *mut T);
     }
 
     /// Create a type-erased pointer
     ///
     /// # Panics
     /// If `ptr` is Null.
-    pub fn of_mut<T: ?Sized>(ptr: *mut T) -> Self {
+    pub fn from_mut<T: ?Sized>(ptr: *mut T) -> Self {
         const {
             assert!(
                 size_of::<*const T>() == size_of::<NonNull<()>>()
@@ -127,8 +127,9 @@ impl AnyPtr {
     ///
     /// # Safety
     ///
-    /// `self` must have been created by a call to `AnyPtr::of<T>`
-    /// or to `AnyPtr::of_mut::<T>`.
+    /// `self` **MUST** have been created by a call to either:
+    /// * `AnyPtr::of::<T>(ptr)`
+    /// * `AnyPtr::of_mut::<T>(ptr)`
     pub unsafe fn to_ptr<T: ?Sized>(self) -> NonNull<T> {
         const {
             assert!(

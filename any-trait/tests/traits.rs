@@ -1,4 +1,4 @@
-use any_trait::{AnySubTrait, AnyTrait, AsAnyTrait};
+use any_trait::{AnySubTrait, AnyTrait, AnyTraitCast, AsAnyTrait};
 
 #[test]
 fn no_subtraits() {
@@ -11,8 +11,8 @@ fn no_subtraits() {
 
     let a = s.as_anytrait();
 
-    match a.downcast_ref::<C>() {
-        None => assert!(false, "can't downcast to concrete"),
+    match a.cast_ref::<C>() {
+        None => assert!(false, "can't cast to concrete"),
         Some(s_ref) => {
             assert!(s_ref == &s, "concrete not equal");
         }
@@ -55,8 +55,8 @@ fn multi_traits() {
 
     let a = s.as_anytrait();
 
-    match a.downcast_ref::<C>() {
-        None => assert!(false, "can't downcast to concrete"),
+    match a.cast_ref::<C>() {
+        None => assert!(false, "can't cast to concrete"),
         Some(s_ref) => {
             assert!(s_ref == &s, "concrete not equal");
             assert!(
@@ -71,23 +71,29 @@ fn multi_traits() {
             );
         }
     }
-    match a.downcast_ref::<dyn TA>() {
-        None => assert!(false, "can't downcast to TA"),
+
+    match a.cast_ref::<dyn TA>() {
+        None => assert!(false, "can't cast to TA"),
         Some(ta_ref) => {
             assert!(ta_ref.add_one() == 43, "TA add_one: {}", ta_ref.add_one());
             assert!(ta_ref.use_x(40) == 82, "TA use_x: {}", ta_ref.use_x(40));
+            // TA is not a supertrait of `AnyTrait` so you can't do:
+            // let x = ta_ref.cast_ref::<dyn TB>(); //no such method
+            // let a = ta_ref.as_anytrait(); //no such method
         }
     }
-    match a.downcast_ref::<dyn TB>() {
-        None => assert!(false, "can't downcast to TB"),
+    match a.cast_ref::<dyn TB>() {
+        None => assert!(false, "can't cast to TB"),
         Some(tb_ref) => {
             assert!(tb_ref.add_two() == 44, "TB add_two: {}", tb_ref.add_two());
             assert!(tb_ref.use_x(40) == 2, "TB use_x: {}", tb_ref.use_x(40));
 
+            let x = tb_ref.cast_ref::<dyn TA>();
+            assert!(x.is_some(), "failed cast TB->TA");
             // You can also cast from TB to AnyTrait and to TA again
             // since TB requires `AnyTrait`
             let a2 = tb_ref.as_anytrait();
-            match a2.downcast_ref::<dyn TA>() {
+            match a2.cast_ref::<dyn TA>() {
                 None => assert!(false, "can't side-cast from TB to TA"),
                 Some(ta2_ref) => {
                     assert!(
